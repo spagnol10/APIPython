@@ -13,7 +13,6 @@ from typing import List
 import numpy as np
 from database import database  
 
-# Configurando logging
 logging.basicConfig(level=logging.INFO)
 
 class ImgComp(BaseModel):
@@ -98,21 +97,28 @@ async def CadastroImagem(images: List[ImgCad]):
             raise HTTPException(status_code=400, detail="Erro ao cadastrar imagem")
     return {"message": "Imagens cadastradas com sucesso"}
 
+
 @app.post("/Reconhecimento")
 async def Reconhecimento(image: ImgRec):
     img = decode_and_process_image(image.img)
     img_encoding = encode_face(img)
     
-    if not known_faces:
+    query = "SELECT * FROM known_faces"
+    rows = await database.fetch_all(query)
+    
+    if not rows:
         logging.error("Nenhuma face cadastrada no sistema.")
         raise HTTPException(status_code=404, detail="Nenhuma face cadastrada.")
     
-    for person in known_faces:
+    for person in rows:
         logging.info(f"Comparando com {person['name']}")
-        if face_recognition.compare_faces([person["encoding"]], img_encoding)[0]:
-            return {"message": "Pessoa encontrada", "name": person["name"], "cpf": person["cpf"]}
+        encoding = person['encoding'] 
+        
+        if face_recognition.compare_faces([encoding], img_encoding)[0]:
+            return {"message": "Pessoa encontrada", "name": person['name'], "cpf": person['cpf']}
     
     return {"message": "Pessoa não encontrada"}
+
 
 
 @app.post("/ComparaImagens")
